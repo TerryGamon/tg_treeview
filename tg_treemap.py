@@ -392,7 +392,7 @@ def tg_treemap(df,
             if beschriftung3wo.shape[0]>0:
                 for i in range(0, beschriftung3wo.shape[0]):
                     temp = beschriftung3wo[i:i+1]
-                    fcolor = temp['fillcolor'].iloc[0]
+                    fcolor = temp['fontcolor'].iloc[0]
                     ffamily = temp['fontfamily'].iloc[0]
                     fsize = temp['fontsize'].iloc[0]
                     p = p + p9.geom_text(data= temp, mapping=p9.aes(x='x+dx/2', y='y+dy/2', label='stext'), 
@@ -403,7 +403,7 @@ def tg_treemap(df,
             if beschriftung3so.shape[0]>0:
                 for i in range(0, beschriftung3so.shape[0]):
                     temp = beschriftung3so[i:i+1]
-                    fcolor = temp['fillcolor'].iloc[0]
+                    fcolor = temp['fontcolor'].iloc[0]
                     ffamily = temp['fontfamily'].iloc[0]
                     fsize = temp['fontsize'].iloc[0]
                     p = p + p9.geom_text(data= temp, mapping=p9.aes(x='x+dx/2', y='y+dy/2', label='stext'), 
