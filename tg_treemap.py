@@ -3,6 +3,7 @@ import numpy as np
 import plotnine as p9
 import squarify
 
+__version__ = '0.2'
 
 def tg_treemap(df, 
               width:int=1200, 
@@ -10,7 +11,7 @@ def tg_treemap(df,
               h1_pad:int=23, 
               h2_pad:int=0,
               pads:list=[0,2,1], 
-              colors = ['#4E79A7', '#A0CBE8', '#F28E2B', '#FFBE7D', '#59A14F', '#8CD17D', '#B6992D', '#F1CE63', '#499894', '#86BCB6', '#E15759', '#FF9D9A', '#79706E', '#BAB0AC', '#D37295', '#FABFD2', '#B07AA1', '#D4A6C8', '#9D7660', '#D7B5A6'], 
+              fillcolors = ['#4E79A7', '#A0CBE8', '#F28E2B', '#FFBE7D', '#59A14F', '#8CD17D', '#B6992D', '#F1CE63', '#499894', '#86BCB6', '#E15759', '#FF9D9A', '#79706E', '#BAB0AC', '#D37295', '#FABFD2', '#B07AA1', '#D4A6C8', '#9D7660', '#D7B5A6'], 
               fontcolors:list =['black','darkblue','black'],
               fontfamily = 'Arial',
               fontsizes:list = [12,11,10],
@@ -25,7 +26,7 @@ def tg_treemap(df,
               figsize:list= [12*1.2,8*1.2],
               backgroundcolor:str = 'darkgray',
               canvascolor:str ='white',
-              override:dict = None):
+              override:dict={}):
 
     """width   ... width of box where tree is drawn. This is a calculation basis, neither pixel nor cm.
             ... Breite des Kastens wo die treemap gezeichnet wird. Dient als Kalkulationsbasis, entspricht weder Pixel noch cm.
@@ -79,6 +80,8 @@ def tg_treemap(df,
     backgroundcolor ... color for the entire canvas outside the plotting area
                     ... Farbe der Leinwand ausserhalb des Graphen
 """
+    if override:
+        override = pd.DataFrame(override).T.reset_index().rename(columns={'index':'h3'})
 
     if not 'value' in df.columns:
         return "no column 'value'"
@@ -178,9 +181,10 @@ def tg_treemap(df,
         layer3['orientation'] = np.where(layer3['dx']<=l3_space_none,'keine',layer3['orientation'])
         beschriftung3w = layer3.query("orientation == 'horizontally'").reset_index(drop=True)
         beschriftung3s = layer3.query("orientation == 'portrait'").reset_index(drop=True)
+        
         beschriftung3w['stext'] = beschriftung3w['h3']
         beschriftung3s['stext'] = beschriftung3s['h3']
-        
+
         if includeNumbers[2] == 'yes':
             beschriftung3w['stext'] = beschriftung3w['stext'] + ' ' + beschriftung3w['value'].astype('str')
             beschriftung3s['stext'] = beschriftung3s['stext'] + ' ' + beschriftung3s['value'].astype('str')
@@ -188,9 +192,57 @@ def tg_treemap(df,
             beschriftung3w['stext'] = beschriftung3w['value'].astype('str')
             beschriftung3s['stext'] = beschriftung3s['value'].astype('str')
 
+        #override
+        if isinstance(override, pd.DataFrame) and not override.empty:
+            beschriftung3wo = beschriftung3w[beschriftung3w['h3'].isin(override['h3'].to_list())]
+            beschriftung3wn = beschriftung3w[~beschriftung3w['h3'].isin(override['h3'].to_list())]
+            beschriftung3so = beschriftung3s[beschriftung3s['h3'].isin(override['h3'].to_list())]
+            beschriftung3sn = beschriftung3s[~beschriftung3s['h3'].isin(override['h3'].to_list())]
+
+            if beschriftung3wo.shape[0]>0:
+                beschriftung3wo = beschriftung3wo.merge(override, on='h3', how='left')
+                if 'fontcolor' in beschriftung3wo.columns:
+                    beschriftung3wo['fontcolor'] = beschriftung3wo['fontcolor'].fillna(fontcolors[2])
+                else:
+                    beschriftung3wo['fontcolor'] = fontcolors[2]
+
+                if 'fontsize' in beschriftung3wo.columns:
+                    beschriftung3wo['fontsize'] = beschriftung3wo['fontsize'].fillna(fontsizes[2])
+                else:
+                    beschriftung3wo['fontsize'] = fontsizes[2]
+
+                if 'fontfamily' in beschriftung3wo.columns:
+                    beschriftung3wo['fontfamily'] = beschriftung3wo['fontfamily'].fillna(fontfamily)
+                else:
+                    beschriftung3wo['fontfamily'] = fontfamily
+
+            if beschriftung3so.shape[0]>0:
+                beschriftung3so = beschriftung3so.merge(override, on='h3', how='left')
+                if 'fontcolor' in beschriftung3so.columns:
+                    beschriftung3so['fontcolor'] = beschriftung3so['fontcolor'].fillna(fontcolors[2])
+                else:
+                    beschriftung3so['fontcolor'] = fontcolors[2]
+
+                if 'fontsize' in beschriftung3so.columns:
+                    beschriftung3so['fontsize'] = beschriftung3so['fontsize'].fillna(fontsizes[2])
+                else:
+                    beschriftung3so['fontsize'] = fontsizes[2]
+
+                if 'fontfamily' in beschriftung3wo.columns:
+                    beschriftung3so['fontfamily'] = beschriftung3so['fontfamily'].fillna(fontfamily)
+                else:
+                    beschriftung3so['fontfamily'] = fontfamily
+        else:
+            beschriftung3wo = pd.DataFrame()
+            beschriftung3wn = beschriftung3w.copy()
+            beschriftung3so = pd.DataFrame()
+            beschriftung3sn = beschriftung3s.copy()
+
+
         layer3 = layer3.merge(df.drop('value',axis=1),on=['h1','h2','h3'], how='left')
 
-    #boxes
+    #return beschriftung3wn, beschriftung3wo
+    #boxes 
     
     p=(p9.ggplot())
     p =p + p9.geom_rect(mapping=p9.aes(xmin=0,xmax=width-1, ymin=0, ymax=height-1) ,fill=backgroundcolor, color=linecolors[0])
@@ -226,14 +278,24 @@ def tg_treemap(df,
             +p9.geom_rect(data= layer3, mapping=p9.aes(xmin='x',xmax='x+dx', ymin='y', ymax='y+dy', fill=fillcolumn), color=linecolors[1])
             )
     
-        if override != None:
-            ovr = layer3.query("h3 in @override.keys()").copy().reset_index(drop=True)
-            ovr['ocolor'] = ovr['h3'].map(override) 
-            for i in range(0, ovr.shape[0]):
-                temp = ovr[i:i+1]
-                ocolor = temp['ocolor'].iloc[0]
-                p = p + p9.geom_rect(data=temp, mapping=p9.aes(xmin='x', xmax='x+dx', ymin='y', ymax='y+dy'), fill=ocolor)
-    
+        if isinstance(override, pd.DataFrame) and not override.empty:
+            # ovr = layer3.query("h3 in @override.keys()").copy().reset_index(drop=True)
+            # ovr['ocolor'] = ovr['h3'].map(override) 
+            # for i in range(0, ovr.shape[0]):
+            #     temp = ovr[i:i+1]
+            #     ocolor = temp['ocolor'].iloc[0]
+            #     p = p + p9.geom_rect(data=temp, mapping=p9.aes(xmin='x', xmax='x+dx', ymin='y', ymax='y+dy'), fill=ocolor)
+            if type(override)==dict:
+                override = pd.DataFrame(override).T.reset_index().rename(columns={'index':'h3'})
+
+            if 'fillcolor' in override.columns:
+                ovr_fill = layer3.merge(override, on='h3', how='left').dropna(subset='fillcolor').reset_index(drop=True)
+                for i in range(0, ovr_fill.shape[0]):
+                    temp = ovr_fill[i:i+1]
+                    ocolor = temp['fillcolor'].iloc[0]
+                    p = p + p9.geom_rect(data=temp, mapping=p9.aes(xmin='x', xmax='x+dx', ymin='y', ymax='y+dy'), fill=ocolor)
+
+
     p = p + p9.geom_rect(mapping=p9.aes(xmin=0,xmax=width-1, ymin=0, ymax=height-1),fill=None, color=linecolors[0])
     
     # labels
@@ -283,35 +345,83 @@ def tg_treemap(df,
     if 'h3' in df.columns:
         if labeltype[2]=='label':
             p=(p
-            +p9.geom_label(data= beschriftung3w, mapping=p9.aes(x='x+dx/2', y='y+dy/2', label='stext'), 
+            +p9.geom_label(data= beschriftung3wn, mapping=p9.aes(x='x+dx/2', y='y+dy/2', label='stext'), 
                         ha='center', va = 'center', 
                         family=fontfamily, 
                         size=fontsizes[2], 
                         color =fontcolors[2])
-            +p9.geom_label(data= beschriftung3s, mapping=p9.aes(x='x+dx/2', y='y+dy/2', label='stext'), 
-                        ha='center', va = 'center', 
-                        family=fontfamily, 
-                        size=fontsizes[2], 
-                        color =fontcolors[2], 
-                        angle=90)
-            )
+            +p9.geom_label(data= beschriftung3sn, mapping=p9.aes(x='x+dx/2', y='y+dy/2', label='stext'), 
+                       ha='center', va = 'center', 
+                       family=fontfamily, 
+                       size=fontsizes[2], 
+                       color =fontcolors[2], 
+                       angle=90)
+                )
+            #override
+            if beschriftung3wo.shape[0]>0:
+                for i in range(0, beschriftung3wo.shape[0]):
+                    temp = beschriftung3wo[i:i+1]
+                    fcolor = temp['fillcolor'].iloc[0]
+                    ffamily = temp['fontfamily'].iloc[0]
+                    fsize = temp['fontsize'].iloc[0]
+                    p = p + p9.geom_label(data= temp, mapping=p9.aes(x='x+dx/2', y='y+dy/2', label='stext'), 
+                            ha='center', va = 'center', 
+                            family=ffamily, 
+                            size=fsize, 
+                            color =fcolor)
+            if beschriftung3so.shape[0]>0:
+                for i in range(0, beschriftung3so.shape[0]):
+                    temp = beschriftung3so[i:i+1]
+                    fcolor = temp['fillcolor'].iloc[0]
+                    ffamily = temp['fontfamily'].iloc[0]
+                    fsize = temp['fontsize'].iloc[0]
+                    p = p + p9.geom_label(data= temp, mapping=p9.aes(x='x+dx/2', y='y+dy/2', label='stext'), 
+                            ha='center', va = 'center', 
+                            family=ffamily, 
+                            size=fsize, 
+                            color =fcolor,
+                            angle=90)
         else:
             p=(p
-            +p9.geom_text(data= beschriftung3w, mapping=p9.aes(x='x+dx/2', y='y+dy/2', label='stext'), 
+            +p9.geom_text(data= beschriftung3wn, mapping=p9.aes(x='x+dx/2', y='y+dy/2', label='stext'), 
                         ha='center', va = 'center', 
                         family=fontfamily, 
                         size=fontsizes[2], 
                         color =fontcolors[2])
-            +p9.geom_text(data= beschriftung3s, mapping=p9.aes(x='x+dx/2', y='y+dy/2', label='stext'), 
+            +p9.geom_text(data= beschriftung3sn, mapping=p9.aes(x='x+dx/2', y='y+dy/2', label='stext'), 
                         ha='center', va = 'center', 
                         family=fontfamily, 
                         size=fontsizes[2], 
                         color =fontcolors[2], 
                         angle=90)
             )
+            #override
+            if beschriftung3wo.shape[0]>0:
+                for i in range(0, beschriftung3wo.shape[0]):
+                    temp = beschriftung3wo[i:i+1]
+                    fcolor = temp['fillcolor'].iloc[0]
+                    ffamily = temp['fontfamily'].iloc[0]
+                    fsize = temp['fontsize'].iloc[0]
+                    p = p + p9.geom_text(data= temp, mapping=p9.aes(x='x+dx/2', y='y+dy/2', label='stext'), 
+                            ha='center', va = 'center', 
+                            family=ffamily, 
+                            size=fsize, 
+                            color =fcolor)
+            if beschriftung3so.shape[0]>0:
+                for i in range(0, beschriftung3so.shape[0]):
+                    temp = beschriftung3so[i:i+1]
+                    fcolor = temp['fillcolor'].iloc[0]
+                    ffamily = temp['fontfamily'].iloc[0]
+                    fsize = temp['fontsize'].iloc[0]
+                    p = p + p9.geom_text(data= temp, mapping=p9.aes(x='x+dx/2', y='y+dy/2', label='stext'), 
+                            ha='center', va = 'center', 
+                            family=ffamily, 
+                            size=fsize, 
+                            color =fcolor,
+                            angle=90)
     p=(p
    
-    +p9.scale_fill_manual(values=colors)
+    +p9.scale_fill_manual(values=fillcolors)
     +p9.theme_minimal()
     +p9.coord_fixed()
     +p9.labs(x='',y='')
