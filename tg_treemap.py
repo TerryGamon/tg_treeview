@@ -3,7 +3,7 @@ import numpy as np
 import plotnine as p9
 import squarify
 
-__version__ = '0.2'
+__version__ = '0.21'
 
 def tg_treemap(df, 
               width:int=1200, 
@@ -241,7 +241,6 @@ def tg_treemap(df,
 
         layer3 = layer3.merge(df.drop('value',axis=1),on=['h1','h2','h3'], how='left')
 
-    #return beschriftung3wn, beschriftung3wo
     #boxes 
     
     p=(p9.ggplot())
@@ -279,12 +278,6 @@ def tg_treemap(df,
             )
     
         if isinstance(override, pd.DataFrame) and not override.empty:
-            # ovr = layer3.query("h3 in @override.keys()").copy().reset_index(drop=True)
-            # ovr['ocolor'] = ovr['h3'].map(override) 
-            # for i in range(0, ovr.shape[0]):
-            #     temp = ovr[i:i+1]
-            #     ocolor = temp['ocolor'].iloc[0]
-            #     p = p + p9.geom_rect(data=temp, mapping=p9.aes(xmin='x', xmax='x+dx', ymin='y', ymax='y+dy'), fill=ocolor)
             if type(override)==dict:
                 override = pd.DataFrame(override).T.reset_index().rename(columns={'index':'h3'})
 
@@ -361,7 +354,7 @@ def tg_treemap(df,
             if beschriftung3wo.shape[0]>0:
                 for i in range(0, beschriftung3wo.shape[0]):
                     temp = beschriftung3wo[i:i+1]
-                    fcolor = temp['fillcolor'].iloc[0]
+                    fcolor = temp['fontcolor'].iloc[0]
                     ffamily = temp['fontfamily'].iloc[0]
                     fsize = temp['fontsize'].iloc[0]
                     p = p + p9.geom_label(data= temp, mapping=p9.aes(x='x+dx/2', y='y+dy/2', label='stext'), 
@@ -372,7 +365,7 @@ def tg_treemap(df,
             if beschriftung3so.shape[0]>0:
                 for i in range(0, beschriftung3so.shape[0]):
                     temp = beschriftung3so[i:i+1]
-                    fcolor = temp['fillcolor'].iloc[0]
+                    fcolor = temp['fontcolor'].iloc[0]
                     ffamily = temp['fontfamily'].iloc[0]
                     fsize = temp['fontsize'].iloc[0]
                     p = p + p9.geom_label(data= temp, mapping=p9.aes(x='x+dx/2', y='y+dy/2', label='stext'), 
